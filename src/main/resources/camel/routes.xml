@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+    <routeContext id="internalPeopleServiceRoutes" xmlns="http://camel.apache.org/schema/spring">
+        <route id="createPerson">
+            <from uri="direct:createPerson"/>
+            <to uri="sql://Insert into people values(nextval('people_sq'), 0, :#name, :#surname)"/>
+            <log message="Inserted rows: ${header.CamelSqlUpdateCount}"/>
+            <onException>
+                <exception>java.lang.Exception</exception>
+                <log message="Error: ${header.CamelExceptionCaught}"/>
+            </onException>
+        </route>
+
+        <route id="readFileStorage">
+            <from uri="file://peopleStorage?fileName=city.xml&amp;noop=true&amp;delete=true"/>
+            <unmarshal ref="peopleFormat"/>
+            <setHeader headerName="peopleCount">
+                <simple>${body.getPeople().size()}</simple>
+            </setHeader>
+            <transform>
+                <simple>${body.getPeople()}</simple>
+            </transform>
+            <split>
+                <simple>${body}</simple>
+                <log message="${body}"/>
+                <to uri="direct:fillAttrs"/>
+                <multicast>
+                    <to uri="direct:mail"/>
+                    <to uri="direct:createPerson"/>
+                </multicast>
+            </split>
+        </route>
+
+        <route id="fillProperties">
+            <from uri="direct:fillAttrs"/>
+            <setHeader headerName="name">
+                <simple>${body.name}</simple>
+            </setHeader>
+            <setHeader headerName="surname">
+                <simple>${body.surname}</simple>
+            </setHeader>
+        </route>
+
+        <route id="getPoison">
+            <from uri="activemq:poisons?destination.consumer.exclusive=true&amp;destination.consumer.prefetchSize=50"/>
+            <unmarshal ref="json"/>
+            <log message="${body}"/>
+            <to uri="sql://update people set percent_of_poison=percent_of_poison + :#concentration where p_id=:#personId and 100 > percent_of_poison"/>
+            <log message="Updated rows: ${header.CamelSqlUpdateCount}"/>
+            <log message="PersonId: ${body['personId']}"/>
+        </route>
+
+
+        <route id="mail">
+            <from uri="direct:mail"/>
+            <choice>
+                <when>
+                    <simple>{{mail.use}}</simple>
+                    <to uri="smtps://{{smtp.server}}:{{smtp.port}}?debugMode=true&amp;username={{mail.username}}&amp;password={{mail.password}}&amp;subject=New person in city!&amp;from={{mail.from}}&amp;to={{mail.to}}"/>
+                </when>
+            </choice>
+        </route>
+
+        <route id="generatePoison">
+            <from uri="timer://generatorPoison?fixedRate=true&amp;period=600s"/>
+            <choice>
+                <when>
+                    <simple>{{generator.use}}</simple>
+                    <to uri="sql://select p_id as personId from people order by random() limit 1"/>
+                    <process ref="poisonEnricherProc"/>
+                    <marshal ref="json"/>
+                    <log message="Send poison to person with body: ${body};"/>
+                    <to uri="activemq://poisons?jmsMessageType=Object"/>
+                </when>
+            </choice>
+        </route>
+    </routeContext>
+</beans>

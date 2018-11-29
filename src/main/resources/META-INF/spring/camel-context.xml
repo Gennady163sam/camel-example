@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+    <import resource="classpath:camel/db-config.xml"/>
+    <import resource="classpath:camel/components.xml"/>
+    <import resource="classpath:camel/rest-routes.xml"/>
+    <import resource="classpath:camel/routes.xml"/>
+
+    <camelContext xmlns="http://camel.apache.org/schema/spring">
+        <propertyPlaceholder id="properties" location="app.properties"/>
+
+        <routeContextRef ref="internalPeopleServiceRoutes"/>
+        <restContextRef ref="restPeopleService"/>
+
+        <dataFormats>
+            <jaxb id="peopleFormat" prettyPrint="true" contextPath="com.zic"/>
+            <json id="json" library="Jackson" prettyPrint="true"/>
+        </dataFormats>
+
+        <restConfiguration xmlns="http://camel.apache.org/schema/spring" host="{{rest.host}}" port="{{rest.port}}" component="restlet"/>
+    </camelContext>
+</beans>

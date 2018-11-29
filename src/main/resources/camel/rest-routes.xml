@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+    <restContext xmlns="http://camel.apache.org/schema/spring" id="restPeopleService">
+        <rest path="/echo">
+            <get uri="">
+                <route id="helloRoute">
+                    <from uri="direct:hello"/>
+                    <setBody>
+                        <simple>Hello world!!</simple>
+                    </setBody>
+                </route>
+            </get>
+        </rest>
+
+        <rest path="/city"  bindingMode="json">
+            <get uri="/purposes/{id}">
+                <route id="getPurposeRoute">
+                    <from uri="direct:getPurpose"/>
+                    <to uri="sql://select * from purposes p where p.purp_id = cast(:#id as Integer)"/>
+                </route>
+            </get>
+
+            <post uri="/people">
+                <route id="restCreatePerson">
+                    <setHeader headerName="cityName">
+                        <simple>${body.name}</simple>
+                    </setHeader>
+                    <to uri="direct:fillAttrs"/>
+                    <to uri="direct:createPerson"/>
+                </route>
+            </post>
+
+            <get uri="/people/{personId}">
+                <route id="getPerson">
+                    <from uri="direct:getPerson"/>
+                    <to uri="sql://select p.p_id, rtrim(p.name) as name, rtrim(p.surname) as surname from people p where p_id = cast(:#id as Integer)"/>
+                </route>
+            </get>
+
+            <get uri="/people">
+                <route id="getPeople">
+                    <from uri="direct:getPeople"/>
+                    <to uri="sql://select p.p_id, rtrim(p.name) as name, rtrim(p.surname) as surname from people p"/>
+                </route>
+            </get>
+
+            <get uri="/statistic">
+                <route id="getStatisticByCity">
+                    <from uri="direct:getStatisticByCity"/>
+                    <to uri="sql://select (select count(p.*) from people p where p.percent_of_poison > 99) as zombies,
+                                         (select count(p2.*) from people p2) as allPeople"/>
+                </route>
+            </get>
+        </rest>
+    </restContext>
+</beans>

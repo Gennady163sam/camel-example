@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<city name="New York">
+	<person>
+		<name>Jack</name>
+		<surname>Peerson</surname>
+	</person>
+	<person>
+		<name>Randy</name>
+		<surname>Kovalski</surname>
+	</person>
+</city>
